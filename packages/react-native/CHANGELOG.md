@@ -33,6 +33,10 @@ All notable changes to `@bugmojo/react-native` are documented here.
     supply a custom `transport` that proxies through their own backend (recommended for
     anything wider than a tester build).
 
+### Changed
+
+- Source maps keep line/column mapping but no longer embed the original source text.
+
 ## [0.2.0] - 2026-08-20
 
 ### Added

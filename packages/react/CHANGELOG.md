@@ -20,3 +20,13 @@ Initial public release.
 - Repository, issues, license, and documentation links now point to the public
   SDK docs repo (https://github.com/viveksinra/bugmojo-sdk). No code changes.
 
+
+## [0.2.0] - 2026-10-17
+
+### Changed
+
+- Depends on `@bugmojo/widget` 0.2.0, which brings its mobile bottom-sheet layout
+  for touch devices and narrow screens, the opt-in `shakeToReport` setting, richer
+  device context on reports, and the session-replay throttle and rotation fixes.
+  See the widget changelog for details.
+- Source maps keep line/column mapping but no longer embed the original source text.

@@ -66,6 +66,7 @@ Initial release.
   every 100 ms (was 150 ms), so swipes and momentum scrolls replay more accurately.
 - The submit button is no longer disabled while sending; it shows a busy state and ignores
   repeat taps.
+- Source maps keep line/column mapping but no longer embed the original source text.
 
 ### Fixed
 
