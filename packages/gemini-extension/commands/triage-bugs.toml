@@ -1,0 +1,20 @@
+description = "List, search and prioritize BugMojo bugs, and recommend the next one to fix."
+
+prompt = """
+Triage BugMojo bugs. Scope: {{args}} (a project key or name, or empty for the
+whole workspace).
+
+Follow `skills/triage-bugs/SKILL.md` in this extension:
+
+1. If a project was named, resolve it with `list_projects`.
+2. Fetch with `list_bugs` (board view) or `search_bugs` (full text). Use
+   `bug_status_counts` for the shape of the backlog before listing anything.
+3. Rank by priority, then by evidence quality (a bug with a replay and a repro
+   pack is far cheaper to fix than a prose report), then by age.
+4. Present a short table: key, title, priority, status, assignee, whether it has
+   a recording / repro pack.
+5. Recommend ONE bug to fix next and say why in a sentence. Offer
+   `/bugmojo:fix-bug <key>` as the next step.
+
+Report only what the tools returned. Do not estimate counts you did not read.
+"""

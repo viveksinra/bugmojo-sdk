@@ -1,0 +1,30 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "bugmojo",
+  "owner": {
+    "name": "BugMojo",
+    "email": "support@bugmojo.com",
+    "url": "https://www.bugmojo.com"
+  },
+  "metadata": {
+    "description": "Official BugMojo plugins for Claude Code — bugs with real browser evidence, versioned test plans, and recorded test runs over MCP.",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "bugmojo",
+      "source": "./packages/claude-plugin",
+      "description": "Plan, generate, run and prove your tests. Interviews you into a versioned test plan, proposes cases into a review queue with an automatable-vs-manual verdict, writes Playwright specs verified against the running app, records every run with trace/video evidence, and turns a failure into a bug with an executable repro.",
+      "version": "1.0.0",
+      "author": {
+        "name": "BugMojo",
+        "url": "https://www.bugmojo.com"
+      },
+      "homepage": "https://www.bugmojo.com",
+      "repository": "https://github.com/viveksinra/bugmojo-sdk",
+      "license": "MIT",
+      "keywords": ["bugmojo", "bug-tracking", "mcp", "session-replay", "testing", "playwright", "qa"],
+      "category": "testing"
+    }
+  ]
+}

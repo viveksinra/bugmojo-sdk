@@ -1,0 +1,50 @@
+{
+  "$schema": "https://agent-plugins.org/schema/1.0.0/plugin.schema.json",
+  "schemaVersion": "1.0.0",
+  "name": "bugmojo",
+  "version": "1.0.0",
+  "displayName": "BugMojo",
+  "description": "Bugs arrive with the browser evidence that caused them — session replay, console and network logs — and a runnable repro pack. Plan tests, record runs with trace/video/screenshot evidence, and prove a fix in CI.",
+  "author": {
+    "name": "BugMojo",
+    "email": "support@bugmojo.com",
+    "url": "https://www.bugmojo.com"
+  },
+  "homepage": "https://www.bugmojo.com",
+  "repository": "https://github.com/viveksinra/bugmojo-sdk",
+  "license": "MIT",
+  "keywords": [
+    "bugmojo",
+    "bug-tracking",
+    "mcp",
+    "session-replay",
+    "testing",
+    "playwright",
+    "qa",
+    "test-management"
+  ],
+  "mcpServers": "./mcp.json",
+  "skills": "./skills",
+  "hooks": "./hooks/hooks.json",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "BugMojo",
+        "shortDescription": "Fix bugs from real browser evidence and keep the test plan honest.",
+        "category": "developer-tools"
+      },
+      "directory": {
+        "privacyPolicyUrl": "https://www.bugmojo.com/privacy",
+        "termsOfServiceUrl": "https://www.bugmojo.com/terms",
+        "supportEmail": "support@bugmojo.com",
+        "domainVerification": "https://www.bugmojo.com/.well-known/openai-apps-challenge"
+      },
+      "widgets": [
+        {
+          "resourceUri": "ui://widget/bugmojo-run-results.html",
+          "tools": ["get_regression_run"]
+        }
+      ]
+    }
+  }
+}

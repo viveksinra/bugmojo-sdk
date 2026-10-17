@@ -1,0 +1,64 @@
+---
+description: How to work with BugMojo from Cursor — pulling a bug's real browser evidence before debugging, and writing Playwright specs the BugMojo reporter can map back to test cases.
+globs:
+  - tests/**
+  - e2e/**
+  - playwright.config.*
+alwaysApply: false
+---
+
+# BugMojo
+
+The **BugMojo MCP** is connected as `bugmojo`. It is the system of record for this
+project's bugs, test plans, test cases and test runs. If a `bugmojo` tool returns
+`needs_auth`, tell the user to re-authenticate in Cursor's MCP settings — never
+invent bug, run or coverage data to fill the gap.
+
+## Debugging a reported bug
+
+A bug key looks like `WEB-42`.
+
+1. `get_bug` with the key. Read the AI summary and suspected root cause first.
+2. `get_bug_console_logs` and `get_bug_network_logs` — the errors and failed
+   requests from the user's actual browser session. Read these **before** you
+   start reading source; they usually name the file.
+3. `get_repro_pack` — compiles the recorded rrweb session into a runnable
+   Playwright spec (or a Maestro flow for React Native). Run it, watch it fail,
+   then fix.
+4. `link_pr` once the PR is open. Merge moves the bug to `DEV_TESTING`; the CI
+   webhook moves it to `VERIFIED_FIXED` when the repro test passes — that is the
+   only thing that closes a bug.
+
+## Writing tests
+
+Call `get_project_test_context` **once** before proposing or writing any test. It
+returns this project's conventions, selector hints and the current coverage gaps,
+so you write in the house style instead of inventing one.
+
+Link a spec to a BugMojo test case with an **annotation**, not a filename — an
+annotation survives a rename and a move:
+
+```ts
+test('checkout applies a valid promo code', async ({ page }) => {
+  test.info().annotations.push({ type: 'bugmojo', description: 'WEB-42' });
+  // …
+});
+```
+
+`description` takes either a BugMojo case id or a bug key.
+
+Prefer a stable `data-testid` over a text or CSS selector. If a step cannot be
+automated deterministically — OTP/2FA, CAPTCHA, a real payment, email or SMS
+delivery, visual or accessibility judgment, hardware — do not fake it. Propose
+the case as `MANUAL` with the reason, via `propose_test_cases`.
+
+## Recording results
+
+Results are recorded by `@bugmojo/playwright-reporter` (add it to
+`playwright.config.ts` — `npx @bugmojo/cli init` does this), or over MCP with
+`record_run_results` followed by `upload_evidence`. Keep
+`trace: 'retain-on-failure'`, `video: 'retain-on-failure'` and
+`screenshot: 'only-on-failure'` on: a FAIL without evidence cannot be triaged,
+and a bug opened from it arrives empty.
+
+Never hand-write a passing result. A run that was not executed is not a run.

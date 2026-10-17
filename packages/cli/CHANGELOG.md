@@ -5,9 +5,36 @@ All notable changes to `@bugmojo/cli` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.1.0] - 2026-07-24
+## [0.1.0] - 2026-09-18
+
+First public release (the 2026-07-24 build was never published).
 
 ### Added
+
+- `bugmojo run [playwright args]` — run the project's own Playwright suite and
+  record the results in BugMojo. When `@bugmojo/playwright-reporter` is
+  configured, the reporter records results and evidence itself; otherwise the
+  CLI adds the JSON reporter, maps each test to a BugMojo test case (a
+  `{ type: 'bugmojo', description: 'CASE-KEY' }` annotation, a `[CASE-KEY]`
+  title tag / `@CASE-KEY` tag, or a `tests/bugmojo/CASE-KEY.spec.ts` file
+  name) and POSTs to `/api/v1/test-runs/results`. Detects the `LOCAL` vs `CI`
+  runner and the commit SHA. Supports `--url`, `--project`, `--suite`,
+  `--plan-version`, `--commit`, `--deploy-url`, `--dry-run`, `--no-record`,
+  `--json` and `-- <playwright args>`. The exit code mirrors Playwright's;
+  recording failures are warnings.
+- `bugmojo init` — writes an idempotent, marker-delimited BugMojo block into
+  `AGENTS.md`, `CLAUDE.md`, `.github/copilot-instructions.md`,
+  `.cursor/rules/bugmojo.mdc` and `GEMINI.md`, and adds
+  `@bugmojo/playwright-reporter` + `trace` / `video` `retain-on-failure` and
+  `screenshot: 'only-on-failure'` to `playwright.config.*` (created from a
+  template when the project depends on `@playwright/test` but has no config).
+  Re-running is byte-identical; user content outside the markers is preserved
+  (CRLF files stay CRLF). Supports `--workspace`, `--project`, `--mcp-url`,
+  `--api-url`, `--only`, `--playwright`, `--skip-playwright`, `--dry-run`.
+  Needs no API token.
+- Programmatic exports for both: `applyInit`, `upsertMarkedBlock`,
+  `patchPlaywrightConfig`, `renderInstructionBlock`, `buildRunResultsPayload`,
+  `resolveTestCaseKey`, `BugMojoApiClient.recordRunResults`.
 
 - `bugmojo repro <bug-key>` — pull a bug's repro pack and write a self-contained
   repro directory: the executable `@playwright/test` spec, `logs.md`

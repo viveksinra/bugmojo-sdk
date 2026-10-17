@@ -1,0 +1,7 @@
+{
+  "mcpServers": {
+    "bugmojo": {
+      "url": "https://www.bugmojo.com/api/mcp?mode=qa"
+    }
+  }
+}

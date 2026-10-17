@@ -1,0 +1,36 @@
+{
+  "name": "bugmojo",
+  "version": "1.0.0",
+  "description": "Fix bugs from real browser evidence and keep the test plan honest — BugMojo's hosted MCP, skills and commands for the Gemini CLI.",
+  "contextFileName": "GEMINI.md",
+  "mcpServers": {
+    "bugmojo": {
+      "httpUrl": "${settings.mcp_url}",
+      "oauth": {
+        "enabled": true,
+        "scopes": ["openid", "profile", "email"]
+      },
+      "timeout": 60000,
+      "trust": false
+    }
+  },
+  "settings": [
+    {
+      "key": "mcp_url",
+      "type": "string",
+      "label": "BugMojo MCP URL",
+      "description": "Hosted BugMojo MCP endpoint. Append ?workspace=<slug> to pin one workspace, or ?mode=qa to also expose the run/plan-review tools.",
+      "default": "https://www.bugmojo.com/api/mcp?mode=qa",
+      "required": true
+    },
+    {
+      "key": "default_project",
+      "type": "string",
+      "label": "Default project key",
+      "description": "Project key (e.g. WEB) used when a command does not name one. Leave empty to be asked each time.",
+      "default": "",
+      "required": false
+    }
+  ],
+  "excludeTools": []
+}

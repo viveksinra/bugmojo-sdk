@@ -1,0 +1,36 @@
+{
+  "name": "bugmojo",
+  "description": "Plan, generate, run and prove tests with BugMojo. Interviews you into a versioned test plan, proposes cases into a review queue with an automatable-vs-manual verdict, writes Playwright specs verified against the running app, records every run with trace/video evidence, and turns a failure into a bug with an executable repro.",
+  "version": "1.0.0",
+  "author": {
+    "name": "BugMojo",
+    "email": "support@bugmojo.com",
+    "url": "https://www.bugmojo.com"
+  },
+  "homepage": "https://www.bugmojo.com",
+  "repository": "https://github.com/viveksinra/bugmojo-sdk",
+  "license": "MIT",
+  "keywords": [
+    "bugmojo",
+    "testing",
+    "test-management",
+    "test-plan",
+    "playwright",
+    "qa",
+    "bug-tracking",
+    "mcp",
+    "session-replay",
+    "evidence",
+    "ai-agents"
+  ],
+  "userConfig": {
+    "mcp_url": {
+      "type": "string",
+      "title": "BugMojo MCP URL",
+      "description": "Full URL of the hosted BugMojo MCP endpoint, e.g. https://www.bugmojo.com/api/mcp. Append ?workspace=<slug> to pin a workspace and ?mode=qa to add the plan-review, run and evidence tools the /bugmojo:run and /bugmojo:report skills use.",
+      "default": "https://www.bugmojo.com/api/mcp?mode=qa",
+      "required": true
+    }
+  },
+  "mcpServers": "./.mcp.json"
+}

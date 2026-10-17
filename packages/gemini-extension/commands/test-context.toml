@@ -1,0 +1,19 @@
+description = "Print this project's BugMojo testing conventions, selector hints and current coverage gaps before you write any test."
+
+prompt = """
+Show me the BugMojo testing context for: {{args}} (a project key, or empty to use
+the default project setting).
+
+1. Call `get_project_test_context` once. Summarize, in this order:
+   - the project's testing conventions (`conventions_md`);
+   - selector hints already collected from the codebase;
+   - features with no coverage, and cases flagged for re-verification.
+2. Call `get_coverage_ledger` if it is available on this connection, and show
+   coverage per feature as a short table.
+3. End with the two conventions every spec in this repo must follow:
+   - annotate the case, do not encode it in the filename —
+     `test.info().annotations.push({ type: 'bugmojo', description: 'WEB-42' })`
+   - keep trace / video / screenshot retention on, so a FAIL arrives with evidence.
+
+Do not propose or write any test in this command — this is the read step.
+"""

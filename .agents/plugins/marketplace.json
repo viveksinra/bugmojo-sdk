@@ -1,0 +1,33 @@
+{
+  "$schema": "https://agent-plugins.org/schema/1.0.0/marketplace.schema.json",
+  "schemaVersion": "1.0.0",
+  "name": "bugmojo",
+  "displayName": "BugMojo",
+  "owner": {
+    "name": "BugMojo",
+    "email": "support@bugmojo.com",
+    "url": "https://www.bugmojo.com"
+  },
+  "metadata": {
+    "description": "Official BugMojo agent plugins — bugs with real browser evidence, versioned test plans, and recorded test runs over MCP.",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "bugmojo",
+      "source": "./packages/openai-plugin",
+      "version": "1.0.0",
+      "displayName": "BugMojo",
+      "description": "Fix bugs from real browser evidence and keep the test plan honest: pull a bug's console/network logs, session replay and repro pack over MCP, fix it, open a PR, and record the test run with trace/video/screenshot evidence.",
+      "author": {
+        "name": "BugMojo",
+        "url": "https://www.bugmojo.com"
+      },
+      "homepage": "https://www.bugmojo.com",
+      "repository": "https://github.com/viveksinra/bugmojo-sdk",
+      "license": "MIT",
+      "keywords": ["bugmojo", "bug-tracking", "mcp", "session-replay", "testing", "playwright", "qa"],
+      "category": "developer-tools"
+    }
+  ]
+}

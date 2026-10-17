@@ -1,0 +1,26 @@
+description = "Fix a BugMojo bug end to end: pull its console/network logs and repro pack over MCP, localize, fix, and open a PR that references it."
+
+prompt = """
+Fix the BugMojo bug identified by: {{args}}
+
+Follow `skills/fix-bug/SKILL.md` in this extension. The short version, in order —
+do not skip the evidence steps, they are the whole point:
+
+1. `get_bug` with the id or key (e.g. WEB-42). Read the AI summary and suspected
+   root cause, the project key, the status, and the artifact URLs.
+2. `get_bug_console_logs` and `get_bug_network_logs`. These are the errors and
+   failed requests from the reporter's real browser session. Read them BEFORE
+   opening any source file — they usually name the file for you.
+3. `summarize_replay` if a recording exists, for the exact click path.
+4. `get_repro_pack`. Run the spec it returns and watch it fail. If the pack is
+   marked truncated, say so rather than trusting it blindly.
+5. Localize the root cause in this repo, fix it, and re-run the repro spec.
+6. `persist_repro_test` to commit the spec, then open the PR (`open_repro_pr` if
+   the repo is connected, otherwise your usual flow) and `link_pr`.
+7. `add_comment` on the bug with what was wrong and what changed.
+
+Do not set the bug to fixed by hand. Merge moves it to DEV_TESTING and the CI
+webhook moves it to VERIFIED_FIXED when the repro test passes.
+
+If any bugmojo tool returns needs_auth, stop and tell me to run `/mcp auth bugmojo`.
+"""

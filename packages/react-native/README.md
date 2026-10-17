@@ -104,11 +104,15 @@ function PayButton() {
 
 - **Shake-to-report** — accelerometer state machine (threshold/window/cooldown) opens the built-in report modal; fully configurable or replaceable with your own UI.
 - **Masked screenshot "replay"** — opt-in rolling buffer of periodic screenshots (rrweb DOM recording doesn't exist on native); fails closed if masking can't be confirmed before rasterizing.
+- **Touch trail** — taps and swipes are sampled and overlaid on the replay filmstrip, so you can see *what the user did* between frames. Purely observational: it never claims the touch responder, so your gestures are unaffected.
+- **Crash-linked capture** — an uncaught JS error (anywhere, not just inside a React subtree) auto-files a report carrying the console, network and frames from **before** the crash.
+- **Navigation breadcrumbs** — optional automatic screen-transition trail from React Navigation or Expo Router.
 - **Console + network capture** — patches `console.*` and `fetch`/XHR into ring buffers; attached to every report.
 - **On-device PII + secret redaction** — emails, cards (Luhn-gated), SSNs, phones, auth headers, JWTs, and provider secrets (AWS/Stripe/GitHub/Slack/Google/PEM) are scrubbed **before** anything leaves the device, using the same engine as the BugMojo web SDK (bundled into `dist` — no extra dependency).
 - **Remote-config gating** — capture runs only when your project's `CaptureRuleset` says `enabled`, the session passes deterministic sticky sampling, and the user's cohort matches. Fail-closed with a last-good cache.
 - **Error boundary** — `<BugMojoErrorBoundary>` auto-files a bug with the React component stack.
 - **Crash-isolated** — every capture hook runs behind a guard with a circuit breaker; a faulting hook self-disables instead of crashing your app.
+- **Test Mode (tester builds)** — shake to run an *assigned test case*: step checklist, per-step masked screenshot, and a real `TestResult` with `runner: 'MOBILE'`. Opt-in, consented per session, never in a shipping build. [Details below](#test-mode-run-assigned-test-cases-from-a-phone).
 - **Expo config plugin** — permissions + privacy manifest handled at prebuild, no native edits.
 
 ## Native module injection (read this for production builds)
@@ -193,7 +197,56 @@ export default function App() {
 
 Headless equivalent: `client.setScreenshotRef(rootRef)`.
 
-## Error boundary
+### Frame cadence, quality and window
+
+The filmstrip defaults to **1 frame/second, 20 frames kept (a 20-second window), JPEG at quality 0.5**. Tune it:
+
+```tsx
+<BugMojoProvider
+  screenshotIntervalMs={1000}   // 250–60000, default 1000
+  screenshotBufferSize={20}     // 1–120 frames, default 20
+  screenshotFormat="jpg"        // 'jpg' (default) | 'png'
+  screenshotQuality={0.5}       // 0.1–1, default 0.5 (JPEG only)
+  ...
+/>
+```
+
+Values outside those ranges are clamped rather than honoured — `screenshotIntervalMs: 16` would turn the loop into a 60 Hz rasterize-the-whole-tree job. The window in seconds is `screenshotIntervalMs × screenshotBufferSize ÷ 1000`; see [OVERHEAD.md](./OVERHEAD.md) for the memory and upload envelope each setting implies.
+
+## Touch trail
+
+Frames tell you what the screen looked like; the touch trail tells you what the user **did** between them — the tap that hit the wrong row, the swipe that scrolled past the bug, the three impatient taps on a dead button. Touch points are sampled onto the same clock as the frames and drawn as a fading trail over the filmstrip in the dashboard.
+
+It is **on by default** and costs one wrapper `View`:
+
+```tsx
+<BugMojoProvider captureTouches touchMoveThrottleMs={60} ...>
+```
+
+> **It cannot break your gestures.** The SDK attaches React Native's raw `onTouchStart`/`onTouchMove`/`onTouchEnd`/`onTouchCancel` props, which are bubble-phase *notifications*. It never enters responder negotiation, so it can never take a scroll, tap or swipe away from your app. (A `PanResponder` that declines the responder would also be non-blocking, but it never receives the gesture's release — and the release is exactly where a tap lands.)
+
+The wrapper View is styled `{ flex: 1 }`. If your provider is mounted somewhere that must not stretch, pass `touchCaptureStyle={{ ... }}` or set `captureTouches={false}`.
+
+Only `start` and `end` are always kept; `move` samples are throttled (`touchMoveThrottleMs`, default 60 ms) and require `touchMoveMinDistancePx` (default 6) of travel, so a resting finger produces nothing.
+
+## Crash-linked capture
+
+The highest-value moment in mobile bug capture is the one bug the user can never reproduce on request. Both crash paths are wired:
+
+| Crash | Handled by | Attaches |
+| --- | --- | --- |
+| Render/lifecycle error in a subtree | `<BugMojoErrorBoundary>` | component stack + rolling buffer |
+| Any other uncaught JS error (async callbacks, native module handlers, fatals) | RN `ErrorUtils` global handler, chained by the client | stack + rolling buffer |
+
+Both file a normal report carrying the console, network and masked frames from **before** the failure, tagged `bugmojo_crash: true` so triage can tell an auto-filed crash from a user-written report. Neither takes a *fresh* screenshot: by the time a crash handler runs the UI has already swapped to a fallback, so the last pre-crash frame in the rolling buffer is the evidence you want.
+
+```tsx
+<BugMojoProvider captureCrashes maxCrashReports={3} ...>   // both are the defaults
+```
+
+Auto-crash reports are **not** subject to sticky sampling — crashes are rare and every one is reported — but the ingest route still re-checks your project's capture ruleset server-side, so a project with capture switched off is hard-denied. Repeat errors are deduped by signature and capped at `maxCrashReports` per session so a throwing render loop can't flood the user's mobile data.
+
+### Error boundary
 
 ```tsx
 import { BugMojoErrorBoundary } from '@bugmojo/react-native';
@@ -204,6 +257,36 @@ import { BugMojoErrorBoundary } from '@bugmojo/react-native';
 ```
 
 A caught crash auto-files a bug with the React component stack. Props: `fallback` (node or render-prop `{ error, reset }`), `title`, `onError(error, componentStack)`.
+
+## Navigation breadcrumbs
+
+"Which screen was this on, and how did they get there?" — folded into the same breadcrumb trail as `track()`. Works with **React Navigation** and **Expo Router**, and imports neither: the SDK reads your navigation container ref structurally, so there is no peer dependency, nothing for Metro to resolve, and nothing that can throw when you don't use a router.
+
+```tsx
+import { useNavigationContainerRef } from '@react-navigation/native';  // or from 'expo-router'
+
+function App() {
+  const navigationRef = useNavigationContainerRef();
+  return (
+    <BugMojoProvider navigationRef={navigationRef} ...>
+      <NavigationContainer ref={navigationRef}>{/* ... */}</NavigationContainer>
+    </BugMojoProvider>
+  );
+}
+```
+
+Don't keep a ref? Spread the state handlers onto `<NavigationContainer>` instead — the screen name is derived from the navigation state itself:
+
+```tsx
+import { createNavigationStateHandlers } from '@bugmojo/react-native';
+
+const { report, track } = useBugMojo();
+const nav = useMemo(() => createNavigationStateHandlers(track), [track]);
+
+<NavigationContainer {...nav}>{/* ... */}</NavigationContainer>
+```
+
+Each transition emits a `navigation` breadcrumb `{ screen, from }`, deduped so param changes and cancelled swipe-backs don't spam the trail, and resolved to the **deepest focused route** so a screen inside a tab inside a stack reports the leaf the user is actually looking at. Omit `navigationRef` and the feature is simply off.
 
 ## Headless (no React)
 
@@ -219,6 +302,65 @@ await bugmojo.report({ title: 'Background sync failed' });
 ```
 
 `createBugMojoClient(options, { store })` accepts the same options as the provider (including `nativeModules`) and returns a `BugMojoClient` with `report()`, `identify()`, `setRelease()`, `track()`, `setScreenshotRef()`, and `destroy()`.
+
+## Test Mode: run assigned test cases from a phone
+
+Test Mode turns a **tester build** of your app into a manual-test runner. A tester shakes
+the device, picks one of the test cases assigned to them in BugMojo, walks the step
+checklist, and submits a result whose evidence is the same shape CI produces — a masked
+screenshot per step, the session filmstrip, and the redacted console and network logs.
+
+```tsx
+import { BugMojoProvider } from '@bugmojo/react-native';
+
+<BugMojoProvider
+  projectId="YOUR_EMBED_TOKEN"
+  apiBase="https://www.bugmojo.com"
+  // Screenshot evidence needs the same interlock as passive replay.
+  acknowledgeScreenshotRisk
+  testMode={{
+    enabled: __DEV__ || process.env.EXPO_PUBLIC_QA_BUILD === '1',
+    testerToken: process.env.EXPO_PUBLIC_BUGMOJO_TESTER_KEY,
+    projectKey: 'WEB',
+    testerId: 'qa@yourcompany.com',
+  }}
+  screenshotRef={rootRef}
+>
+  {children}
+</BugMojoProvider>
+```
+
+**What happens**
+
+1. Shake → the test-run sheet opens on the tester's assigned cases (`GET /api/v1/assignments`).
+2. Pick a case → a **consent screen** explains exactly what will be recorded. Nothing is
+   captured until the tester taps *Start and record*.
+3. Mark each step PASS / FAIL / BLOCKED / SKIP. Each verdict grabs a fresh masked frame as
+   that step's proof.
+4. Submit → one `TestResult` (`runner: 'MOBILE'`) plus its evidence rows, through the same
+   `/api/v1/runs/results` + `/api/v1/runs/evidence` endpoints the Playwright reporter uses.
+
+**HYBRID cases resume where CI stopped.** When BugMojo hands down a handoff, the sheet
+greys out the steps CI already ran, shows the commit, deploy URL and app state it left
+behind, and opens the checklist at the step the human owns. Both halves land on one
+`TestResult`, so the case carries automated *and* manual evidence.
+
+**Apple guideline 2.5.14 posture.** Test Mode is off unless the host enables it, requires a
+tester credential a shipping build never carries, records only after explicit per-session
+consent, and stops the moment the sheet is closed or the result submitted. It is never
+always-on recording.
+
+**Production wiring.** A BugMojo API key inside an app bundle is a tester-build
+affordance. For anything wider, implement `TestModeTransport` against your own backend and
+pass it as `testMode.transport`:
+
+```ts
+testMode={{ enabled: true, projectKey: 'WEB', transport: myProxyTransport }}
+```
+
+Running your own tester UI? Pass `renderTestRunSheet={false}` and drive
+`useBugMojo().testMode` (a `TestModeController` with `open()`, `begin()`, `consent()`,
+`rule()`, `submit()` and `subscribe()`).
 
 ## Privacy & security
 
@@ -242,12 +384,25 @@ Options accepted by `<BugMojoProvider>` and `createBugMojoClient`:
 | `customData` | — | Arbitrary metadata attached to every submission. |
 | `nativeModules` | — | Statically-imported optional modules (`sensors`, `viewShot`, `device`, `constants`, `reactNative`). Strongly recommended in production. |
 | `enableShakeToReport` | `true` | Shake gesture opens the report modal. |
+| `testMode` | — | Tester-build Test Run mode: `{ enabled, testerToken, projectKey, projectId?, testerId?, transport?, captureFilmstrip?, onSubmit? }`. When enabled, shake opens the test-run sheet instead of the report modal. |
+| `renderTestRunSheet` | `true` | Render the built-in test-run sheet. Only ever mounts when `testMode.enabled` is set. |
 | `captureConsole` | `true` | Patch `console.*` into the capture buffer. |
 | `captureNetwork` | `true` | Patch `fetch` + XHR into the capture buffer. |
 | `enableScreenshotReplay` | `false` | Periodic masked screenshots (needs a view-shot ref **and** `acknowledgeScreenshotRisk`). |
 | `acknowledgeScreenshotRisk` | `false` | Required with `enableScreenshotReplay` — you accept that any un-wrapped sensitive view can leak pixels. |
-| `screenshotIntervalMs` | `2000` | Interval between replay frames. |
-| `screenshotBufferSize` | `10` | Max frames kept in the rolling replay buffer. |
+| `screenshotIntervalMs` | `1000` | Interval between replay frames. Clamped to 250–60000. |
+| `screenshotBufferSize` | `20` | Max frames kept in the rolling replay buffer. Clamped to 1–120. |
+| `screenshotFormat` | `'jpg'` | Frame encoding — `'jpg'` or `'png'`. |
+| `screenshotQuality` | `0.5` | JPEG quality 0.1–1 (ignored for PNG). |
+| `consoleBufferSize` | `500` | Max console entries in the rolling buffer. |
+| `networkBufferSize` | `200` | Max network entries in the rolling buffer. |
+| `captureTouches` | `true` | Record taps/swipes for the replay touch trail. Never claims the touch responder. |
+| `touchBufferSize` | `400` | Max touch points in the rolling buffer. |
+| `touchMoveThrottleMs` | `60` | Minimum ms between recorded `move` samples. |
+| `touchMoveMinDistancePx` | `6` | Minimum travel before another `move` sample is kept. |
+| `captureCrashes` | `true` | Auto-file a report on an uncaught JS error, with the pre-crash buffer attached. |
+| `maxCrashReports` | `3` | Cap on auto-filed crash reports per session. |
+| `navigationRef` | — | React Navigation / Expo Router container ref for screen breadcrumbs. |
 | `shakeThreshold` | `1.8` | Accelerometer magnitude (g) for a shake. |
 | `sessionId` | random | Persist your own for cross-launch sticky sampling. |
 | `onOpen` / `onClose` / `onSubmit` | — | Lifecycle callbacks (modal opened/closed, report submitted). |
@@ -259,6 +414,7 @@ Provider-only props:
 | `store` | in-memory | KV store for the last-good config cache (pass AsyncStorage). |
 | `renderModal` | `true` | Set `false` to supply your own UI and drive it via `useBugMojo()`. |
 | `screenshotRef` | — | RefObject of the view rasterized for screenshot replay. |
+| `touchCaptureStyle` | `{ flex: 1 }` | Style for the touch-capture wrapper View. |
 
 ### `useBugMojo()`
 
@@ -271,6 +427,8 @@ Provider-only props:
 | `setRelease(release)` | Update the release string used for gating + reports. |
 | `track(name, data?)` | Record a breadcrumb (last 50 are attached to reports). |
 | `open()` / `close()` | Open/close the built-in report modal. |
+| `testMode` | The `TestModeController` when Test Mode is enabled for this build, else `null`. |
+| `openTestRun()` / `closeTestRun()` | Open/close the built-in test-run sheet. No-ops when Test Mode is off. |
 
 ## Troubleshooting / FAQ
 
@@ -280,13 +438,19 @@ Provider-only props:
 
 **Reports have no console/network logs.** Passive capture only installs when the capture gate passes — your project's ruleset must be `enabled`, the session must fall inside `sample_rate`, and the user's `cohort` must match. Check `useBugMojo().capturing`; if `false`, review the capture ruleset in your BugMojo project settings.
 
+**Does the touch capture interfere with my gestures?** No — see [Touch trail](#touch-trail). It uses bubble-phase touch notifications and never enters responder negotiation. If you still want it off: `captureTouches={false}`. If the extra wrapper View changes your layout, pass `touchCaptureStyle` instead of disabling capture.
+
+**Reports have no touch trail.** Touches are buffered only while passive capture is on (`useBugMojo().capturing === true`), since a trail with no filmstrip to annotate is noise. Also check you didn't set `captureTouches={false}`.
+
+**No navigation breadcrumbs.** You must hand the SDK a container ref (`navigationRef`) or spread `createNavigationStateHandlers(track)` onto `<NavigationContainer>` — there is no auto-discovery, because neither React Navigation nor Expo Router exposes a global registry of live containers and reaching into their internals would break on every minor release.
+
 **Does it record video or use rrweb?** No. There is no DOM on native, so "replay" is a rolling buffer of masked screenshots. rrweb is never bundled into this SDK.
 
 **Do I need to eject or write native code?** No. Everything native comes from the optional Expo peer modules plus the config plugin; `expo prebuild` / EAS Build handles the rest. Bare RN apps work too — set the Info.plist key and privacy manifest manually (see the config plugin section).
 
 ## Device-lab testing
 
-The pure JS logic (config gating, sticky sampling, redaction reuse, capture buffer, payload builder, shake detector, mask controller) is unit-tested. The native paths — the expo-sensors accelerometer, react-native-view-shot rasterization, `ErrorUtils` global handler, `AppState` background flush, and the Expo config plugin prebuild — must be validated on physical iOS + Android devices and against a TestFlight / Play Internal build before you rely on them in production. Injecting `nativeModules` (above) removes the largest source of on-device surprise.
+The pure JS logic (config gating, sticky sampling, redaction reuse, capture buffers, payload builder, shake detector, mask controller, touch recorder, navigation-state resolution) is unit-tested. The native paths — the expo-sensors accelerometer, react-native-view-shot rasterization, raw touch dispatch through the wrapper View, `ErrorUtils` global handler, `AppState` background flush, and the Expo config plugin prebuild — must be validated on physical iOS + Android devices and against a TestFlight / Play Internal build before you rely on them in production. Injecting `nativeModules` (above) removes the largest source of on-device surprise.
 
 ## Related packages
 

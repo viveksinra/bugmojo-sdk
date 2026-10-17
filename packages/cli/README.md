@@ -14,6 +14,8 @@
 bugmojo repro  <bug-key>            # pull + write the Playwright spec, logs, localization
 bugmojo verify <bug-key> --url URL  # run the repro locally; exit 0 pass / 1 fail
 bugmojo fix    <bug-key>            # print an agent-ready prompt to paste into an AI IDE
+bugmojo run    [playwright args]    # run your Playwright suite, record results + evidence
+bugmojo init                        # teach every coding agent in this repo about BugMojo
 ```
 
 ## Install
@@ -71,7 +73,7 @@ npx @bugmojo/cli verify WEB-42 --url https://preview.example.com --report
 
 | Variable            | Required            | Description                                                                                                          |
 | ------------------- | ------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| `BUGMOJO_API_TOKEN` | yes                 | A `bm_key_…` API key (Dashboard → **Settings → API Keys**). Sent as a Bearer token.                                   |
+| `BUGMOJO_API_TOKEN` | `repro`/`verify`/`fix`/`run` | A `bm_key_…` API key (Dashboard → **Settings → API Keys**). Sent as a Bearer token. `init` never needs it. |
 | `BUGMOJO_API_URL`   | no                  | BugMojo base URL. Default `https://www.bugmojo.com` (hosted). Set your self-hosted URL, or `http://localhost:3000` for local development. |
 | `BUGMOJO_CI_SECRET` | only for `--report` | Shared secret for the CI verify webhook (must match the deployment's CI secret).                                      |
 
@@ -151,6 +153,99 @@ bugmojo fix WEB-42 | xclip -sel clipboard   # clipboard — Linux (X11; Wayland:
 | ------------------ | ------------------------------------------- |
 | `-o, --out <file>` | Write the prompt to a file instead of stdout. |
 
+### `bugmojo run [playwright args]`
+
+Runs your project's Playwright suite (`playwright test`, resolved from the
+current project) and records the results in BugMojo, so a test run is never
+just a claim in a chat window.
+
+```bash
+bugmojo run                                   # whole suite, LOCAL runner
+bugmojo run --url https://preview.example.com # sets PLAYWRIGHT_BASE_URL + deploy_url
+bugmojo run --project WEB --plan-version pv_1 # bind the run to a plan version
+bugmojo run --dry-run                         # run, print the payload, send nothing
+bugmojo run -- --grep @smoke --workers=2      # everything after -- goes to playwright
+```
+
+| Option                | Description                                                                              |
+| --------------------- | ---------------------------------------------------------------------------------------- |
+| `-u, --url <url>`     | Base URL for the run (`PLAYWRIGHT_BASE_URL`); recorded as the run's `deploy_url`.        |
+| `--project <key>`     | BugMojo project key to record against.                                                   |
+| `--suite <id>`        | Regression suite id to attach the run to.                                                |
+| `--plan-version <id>` | Test plan version the run executes.                                                      |
+| `--commit <sha>`      | Commit SHA (default: `GITHUB_SHA` / `VERCEL_GIT_COMMIT_SHA` / ..., then `git rev-parse HEAD`). |
+| `--deploy-url <url>`  | Deploy URL recorded on the run (default: `--url`).                                       |
+| `--dry-run`           | Run the tests, print the payload, do not send it.                                        |
+| `--no-record`         | Run the tests, do not send results.                                                      |
+| `--json`              | Also print the payload that was sent.                                                    |
+
+How a test maps to a BugMojo test case (first match wins):
+
+1. a Playwright annotation: `test.info().annotations.push({ type: 'bugmojo', description: 'WEB-42' })`
+2. a title tag `test('[WEB-42] double click does not duplicate', ...)` or the tag `@WEB-42`
+3. the spec file name: `tests/bugmojo/WEB-42.spec.ts`
+
+When `playwright.config.*` already lists `@bugmojo/playwright-reporter` (see
+`bugmojo init`), `run` does **not** pass `--reporter` (a CLI reporter flag
+would replace yours and silence it) and lets the reporter record results and
+upload trace / video / screenshots itself. Otherwise `run` adds the JSON
+reporter, maps the report and POSTs it to `POST /api/v1/test-runs/results`.
+Recording problems are printed as warnings; the exit code always reflects
+Playwright's own result.
+
+### `bugmojo init`
+
+Teaches every coding agent that opens this repository about BugMojo. Writes a
+**managed block** (`<!-- bugmojo:start -->` ... `<!-- bugmojo:end -->`) into:
+
+| File                              | Read by                                    |
+| --------------------------------- | ------------------------------------------ |
+| `AGENTS.md`                       | Codex, Cursor, Copilot, Gemini, Windsurf   |
+| `CLAUDE.md`                       | Claude Code                                |
+| `.github/copilot-instructions.md` | GitHub Copilot                             |
+| `.cursor/rules/bugmojo.mdc`       | Cursor (rule with frontmatter)             |
+| `GEMINI.md`                       | Gemini CLI                                 |
+
+and adds `['@bugmojo/playwright-reporter']` plus `trace: 'retain-on-failure'`,
+`video: 'retain-on-failure'`, `screenshot: 'only-on-failure'` to
+`playwright.config.*` (created from a template when the project depends on
+`@playwright/test` but has no config yet).
+
+```bash
+bugmojo init                                  # all files, hosted MCP URL
+bugmojo init --workspace acme --project WEB   # pin the workspace, mention the project key
+bugmojo init --only claude,playwright         # a subset of targets
+bugmojo init --dry-run                        # show what would change
+```
+
+| Option               | Description                                                                    |
+| -------------------- | ------------------------------------------------------------------------------ |
+| `--workspace <slug>` | Pin the hosted MCP URL to a workspace (`?workspace=...`).                      |
+| `--project <key>`    | Mention the BugMojo project key in the block.                                  |
+| `--mcp-url <url>`    | Override the hosted MCP URL entirely.                                          |
+| `--api-url <url>`    | BugMojo base URL (default `https://www.bugmojo.com`).                          |
+| `--only <list>`      | Comma list of `agents,claude,copilot,cursor,gemini,playwright`.                |
+| `--playwright`       | Create `playwright.config.ts` even if `@playwright/test` is not a dependency.  |
+| `--skip-playwright`  | Leave `playwright.config.*` alone.                                             |
+| `--client <name>`    | Force the printed next step for one client instead of detecting it: `claude`, `codex`, `cursor`, `copilot`, `gemini`, `windsurf`. |
+| `--dry-run`          | Show what would change without writing.                                        |
+
+Guarantees:
+
+- **Idempotent.** Running it twice produces byte-identical files; the second
+  run reports `unchanged` for everything.
+- **Yours stays yours.** Everything outside the markers is preserved verbatim
+  (CRLF files stay CRLF). A newer block template replaces only the managed
+  region. In `playwright.config.*` an existing `trace` / `video` /
+  `screenshot` choice is respected; only missing keys are added.
+- **Offline.** `init` needs no API token and never touches the network.
+- **Tells you what to do next.** It detects which coding agent is running it
+  (from the environment — `CLAUDECODE`, `CURSOR_TRACE_ID`, `CODEX_SANDBOX`,
+  `GEMINI_CLI`, `TERM_PROGRAM`, ...) and prints the connect + login command for
+  that client. `--client <name>` overrides the guess; when nothing matches it
+  prints the neutral instructions, including the headless
+  `Authorization: Bearer bm_key_...` path.
+
 ### `bugmojo help [command]` / `bugmojo version`
 
 `help` shows the top-level screen or one command's help (`-h`/`--help` work
@@ -198,6 +293,11 @@ status in BugMojo either way.
 - `POST /api/webhooks/ci` (auth: `X-CI-Secret: $BUGMOJO_CI_SECRET`) — used by
   `verify --report`. Body: `{ bug_key, passed, proof_url? }` (the `--url` you
   verified against is sent as the proof link).
+- `POST /api/v1/test-runs/results` (auth: Bearer) — used by `bugmojo run` when
+  `@bugmojo/playwright-reporter` is not configured. Body: the run-results
+  payload (`RecordRunResultsRequest`: runner, commit, deploy URL, per-test
+  status / duration / retries / error / attachments and the resolved test-case
+  key). Reply: `{ run_id, url?, result_ids?, evidence_upload_slots? }`.
 
 > **ESM-only.** The CLI requires Node >= 20 and ships native ES modules. The
 > `bugmojo` bin works everywhere; programmatic consumers on CommonJS should use
