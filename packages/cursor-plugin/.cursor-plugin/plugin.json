@@ -5,7 +5,7 @@
   "description": "Fix bugs from real browser evidence and keep the test plan honest: pull a bug's console/network logs, session replay and repro pack over MCP, fix it, open a PR, and record the test run with evidence.",
   "author": {
     "name": "BugMojo",
-    "email": "support@bugmojo.com",
+    "email": "contact@bugmojo.com",
     "url": "https://www.bugmojo.com"
   },
   "homepage": "https://www.bugmojo.com",

@@ -1,0 +1,18 @@
+{
+  "name": "bugmojo",
+  "owner": {
+    "name": "BugMojo",
+    "email": "contact@bugmojo.com"
+  },
+  "metadata": {
+    "description": "Official BugMojo plugin for Cursor: bugs with real browser evidence, versioned test plans and recorded test runs over MCP.",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "bugmojo",
+      "source": "./packages/cursor-plugin",
+      "description": "Fix bugs from real browser evidence and keep the test plan honest."
+    }
+  ]
+}

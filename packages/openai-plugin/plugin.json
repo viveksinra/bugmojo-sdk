@@ -7,7 +7,7 @@
   "description": "Bugs arrive with the browser evidence that caused them — session replay, console and network logs — and a runnable repro pack. Plan tests, record runs with trace/video/screenshot evidence, and prove a fix in CI.",
   "author": {
     "name": "BugMojo",
-    "email": "support@bugmojo.com",
+    "email": "contact@bugmojo.com",
     "url": "https://www.bugmojo.com"
   },
   "homepage": "https://www.bugmojo.com",
@@ -36,7 +36,7 @@
       "directory": {
         "privacyPolicyUrl": "https://www.bugmojo.com/privacy",
         "termsOfServiceUrl": "https://www.bugmojo.com/terms",
-        "supportEmail": "support@bugmojo.com",
+        "supportEmail": "contact@bugmojo.com",
         "domainVerification": "https://www.bugmojo.com/.well-known/openai-apps-challenge"
       },
       "widgets": [

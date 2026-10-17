@@ -75,7 +75,7 @@ test('checkout with a saved card', async ({ page }) => {
 });
 ```
 
-**2. Name the spec file** — the convention `@bugmojo/verify` already uses, so
+**2. Name the spec file** — the convention `bugmojo verify` already uses, so
 repro specs exported from BugMojo work with no edits:
 
 ```
