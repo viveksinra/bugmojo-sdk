@@ -10,6 +10,7 @@
   "homepage": "https://www.bugmojo.com",
   "repository": "https://github.com/viveksinra/bugmojo-sdk",
   "license": "MIT",
+  "privacyPolicyUrl": "https://www.bugmojo.com/privacy",
   "keywords": [
     "bugmojo",
     "testing",

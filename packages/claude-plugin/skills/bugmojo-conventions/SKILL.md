@@ -2,7 +2,7 @@
 name: bugmojo-conventions
 description: How to name, annotate and structure Playwright and Maestro specs so BugMojo maps every result to the right test case and attaches the trace, video and screenshots. Use whenever you create, rename, move or edit a spec under tests/ or e2e/, add a Playwright annotation or tag, touch playwright.config, or need to explain why a recorded run shows results with no test case attached.
 paths: ["tests/**", "e2e/**"]
-allowed-tools: Read, Grep, Glob, Edit, Write, Bash
+allowed-tools: Read, Grep, Glob
 ---
 
 # BugMojo spec conventions
