@@ -1,5 +1,6 @@
 {
   "name": "bugmojo",
+  "displayName": "BugMojo",
   "description": "Plan, generate, run and prove tests with BugMojo. Interviews you into a versioned test plan, proposes cases into a review queue with an automatable-vs-manual verdict, writes Playwright specs verified against the running app, records every run with trace/video evidence, and turns a failure into a bug with an executable repro.",
   "version": "1.0.0",
   "author": {
@@ -11,6 +12,9 @@
   "repository": "https://github.com/viveksinra/bugmojo-sdk",
   "license": "MIT",
   "privacyPolicyUrl": "https://www.bugmojo.com/privacy",
+  "termsOfServiceUrl": "https://www.bugmojo.com/terms",
+  "supportUrl": "https://www.bugmojo.com/contact",
+  "documentationUrl": "https://www.bugmojo.com/help/agent-clients/install-in-claude-code",
   "keywords": [
     "bugmojo",
     "testing",
